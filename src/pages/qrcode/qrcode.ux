@@ -1,0 +1,113 @@
+<template>
+  <div class="page">
+    <image
+      src="../../common/back.png"
+      style="position: absolute; left: 6px; top: 6px; width: 72px; height: 72px"
+      @click="goback()"
+    ></image>
+    <text class="clock">{{ clock }}</text>
+    <text class="title">链接</text>
+    <div class="contain"></div>
+    <qrcode value="{{ url }}" class="qrcode"></qrcode>
+    <div class="tip">
+      <text
+        style="font-size: 32px; line-height: 44.8px; color: rgb(153, 153, 153); text-align: center"
+      >
+        {{ tipText }}
+      </text>
+    </div>
+  </div>
+</template>
+<script>
+import router from "@system.router"
+
+export default {
+  public: {
+    clock: "09:28",
+    url: "https://www.bing.com/",
+    tipText: "扫码查看内容"
+  },
+  private: {},
+  goback() {
+    router.back()
+  },
+  onBackPress() {
+    router.back()
+  },
+  onInit() {
+    // 时钟
+    const now = new Date()
+    this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+    setInterval(() => {
+      const now = new Date()
+      this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`
+    }, 1000)
+    if (!this.url) this.url = "https://www.bing.com/"
+  }
+}
+</script>
+<style>
+.page {
+  width: 336px;
+  height: 480px;
+  color: #fff;
+  background-color: #000;
+  flex-direction: column;
+}
+.clock {
+  position: absolute;
+  left: 77px;
+  top: 7px;
+  width: 182px;
+  height: 34px;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 33.6px;
+  color: rgb(154, 154, 154);
+  text-align: center;
+}
+.title {
+  position: absolute;
+  left: 77px;
+  top: 35px;
+  width: 182px;
+  height: 45px;
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 44.8px;
+  color: rgb(255, 255, 255);
+  text-align: center;
+}
+.contain {
+  position: absolute;
+  left: 6px;
+  top: 89px;
+  width: 324px;
+  height: 324px;
+  border-radius: 36px;
+  background-color: rgb(255, 255, 255);
+}
+.tip {
+  position: absolute;
+  flex-direction: column;
+  left: -1px;
+  top: 425px;
+  width: 338px;
+  height: 45px;
+}
+
+.qrcode {
+  position: absolute;
+  left: 38px;
+  top: 121px;
+  width: 260px;
+  height: 260px;
+  color: #000;
+}
+</style>

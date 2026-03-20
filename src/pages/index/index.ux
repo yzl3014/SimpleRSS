@@ -1,0 +1,354 @@
+<template>
+  <div class="page">
+    <!--顶栏-->
+    <image
+      src="../../common/back.png"
+      style="position: absolute; left: 6px; top: 6px; width: 72px; height: 72px"
+      @click="exit()"
+    ></image>
+    <image
+      src="../../common/more.png"
+      style="position: absolute; left: 258px; top: 6px; width: 72px; height: 72px"
+      @click="toSettings()"
+      id="toSettings"
+    ></image>
+    <text class="clock">{{ clock }}</text>
+    <text class="title">简读</text>
+    <!--页面-->
+    <div class="main">
+      <!--列表-->
+      <list id="list" style="height: 100%; width: 100%" bounces="true">
+        <list-item
+          for="{{ content }}"
+          type="item"
+          style="height: 157px; margin-bottom: 6px"
+          @click="itemClick($item.id)"
+        >
+          <!--列表项-->
+          <div class="item">
+            <text
+              style="
+                font-size: 32px;
+                line-height: 44.8px;
+                lines: 1;
+                text-overflow: ellipsis;
+                margin-bottom: 2px;
+              "
+            >
+              {{ $item.title }}
+            </text>
+            <text
+              style="
+                color: #a8a8a8;
+                font-size: 28px;
+                line-height: 39.2px;
+                lines: 1;
+                text-overflow: ellipsis;
+                margin-bottom: 2px;
+              "
+            >
+              {{ $item.description.slice(0, 36) }}
+            </text>
+            <text style="color: #a8a8a8; font-size: 27px; line-height: 39.2px; lines: 1">
+              {{ $item.pubDate }}
+            </text>
+          </div>
+        </list-item>
+      </list>
+    </div>
+    <!--加载动画及提示语-->
+    <image-animator
+      id="loading"
+      class="loading"
+      fillmode="none"
+      duration="42ms"
+      images="{{ frames_loading }}"
+      show="{{ show_loading }}"
+    ></image-animator>
+    <text
+      style="
+        position: absolute;
+        top: 270px;
+        left: 68px;
+        font-size: 24px;
+        width: 200px;
+        text-align: center;
+        color: #fff;
+      "
+      show="{{ !!load_status }}"
+    >
+      {{ load_status }}
+    </text>
+    <!--加载失败提示-->
+    <text
+      show="{{ show_fail }}"
+      style="
+        position: absolute;
+        left: 71px;
+        top: 298px;
+        width: 194px;
+        height: 45px;
+        text-align: center;
+        font-size: 36px;
+      "
+    >
+      加载失败
+    </text>
+    <image
+      src="../../common/fail.png"
+      style="position: absolute; left: 104px; top: 146px; width: 128px; height: 128px"
+      show="{{ show_fail }}"
+    ></image>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import request from "@system.request"
+import file from "@system.file"
+import storage from "@system.storage"
+import parseRSS from "../../common/js/rssParser"
+import convertGMTToBeijingTime from "../../common/js/timeConvert"
+
+let raw = [] // 解析后的完整RSS对象
+let fileUri
+let defaultRSS = "https://rsshub.top/telegram/channel/veladev"
+
+export default {
+  // 页面级组件的数据模型，影响传入数据的覆盖机制：private内定义的属性不允许被覆盖
+  private: {
+    clock: "09:28",
+    content: [],
+    rssUrl: "",
+    show_loading: true,
+    show_fail: false,
+    load_status: "",
+    frames_loading: [
+      {src: "/common/loading/loading-00.png"},
+      {src: "/common/loading/loading-01.png"},
+      {src: "/common/loading/loading-02.png"},
+      {src: "/common/loading/loading-03.png"},
+      {src: "/common/loading/loading-04.png"},
+      {src: "/common/loading/loading-05.png"},
+      {src: "/common/loading/loading-06.png"},
+      {src: "/common/loading/loading-07.png"},
+      {src: "/common/loading/loading-08.png"},
+      {src: "/common/loading/loading-09.png"},
+      {src: "/common/loading/loading-10.png"},
+      {src: "/common/loading/loading-11.png"},
+      {src: "/common/loading/loading-12.png"},
+      {src: "/common/loading/loading-13.png"},
+      {src: "/common/loading/loading-14.png"},
+      {src: "/common/loading/loading-15.png"},
+      {src: "/common/loading/loading-16.png"},
+      {src: "/common/loading/loading-17.png"},
+      {src: "/common/loading/loading-18.png"},
+      {src: "/common/loading/loading-19.png"},
+      {src: "/common/loading/loading-20.png"},
+      {src: "/common/loading/loading-21.png"},
+      {src: "/common/loading/loading-22.png"},
+      {src: "/common/loading/loading-23.png"},
+      {src: "/common/loading/loading-24.png"},
+      {src: "/common/loading/loading-25.png"},
+      {src: "/common/loading/loading-26.png"},
+      {src: "/common/loading/loading-27.png"}
+    ]
+  },
+  onReady() {
+    this.processRSS()
+  },
+  processRSS() {
+    // 显示加载动画
+    this.show_loading = true
+    this.$element("loading").start()
+    this.load_status = "下载到本地"
+    // 先从本地读取RSS地址(Storage)，再下载RSS文件(Request)
+    storage.get({
+      key: "rssUrl",
+      default: "",
+      success: (data) => {
+        let rss = data || defaultRSS // 若本地有RSS地址则使用，反则用默认的
+        this.rssUrl = rss
+        console.log("RSS地址", this.rssUrl, data)
+        if (!data) {
+          prompt.showToast({message: "未设置RSS地址, 已使用默认地址"})
+        }
+        // 下载RSS文件
+        request.download({
+          url: rss,
+          filename: "rss.xml",
+          success: (data) => {
+            console.log("开始下载, token=", data.token)
+            this.processResult(data.token) // 处理下载结果
+          },
+          fail: (data, code) => {
+            this.stopLoading(`无法发起请求(${code}, ${data})`, false)
+            prompt.showToast({
+              message: "无法发起请求,请检查手机连接、联网状况、网址是否则正确",
+              duration: 3000
+            })
+          }
+        })
+      },
+      fail: (data, code) => {
+        prompt.showToast({message: `无法从本地获取RSS地址(${code}),请重试`, duration: 3000})
+        this.stopLoading(`无法从本地获取RSS地址(${code}):${data}`, false)
+      }
+    })
+  },
+  processResult(token) {
+    // 通过request提供的token获取下载结果
+    request.onDownloadComplete({
+      token: token,
+      success: (data) => {
+        fileUri = data.uri
+        /*输出文件信息，用于调试
+        file.get({
+          uri: fileUri,
+          success: (fileData) => {
+            console.log("RSS本地文件信息:", fileData)
+          },
+          complete: () => {
+            this.load_status = "读取文件"
+          }
+        })*/
+        // 处理原始RSS（XML格式）
+        file.readText({
+          uri: fileUri,
+          success: (res) => {
+            // 解析RSS
+            this.load_status = "处理文件"
+            global.runGC() // 先清理内存，防止崩溃
+            try {
+              raw = parseRSS(res.text).items
+            } catch (error) {
+              prompt.showToast({message: "RSS解析失败，请检查网址和网站状况"})
+              this.stopLoading(`RSS解析失败:${error}`, false)
+              return
+            }
+            // 筛选RSS中需要显示到首页的内容。例如作者这类数据不会被显示到首页
+            let display = []
+            console.log("开始处理获取到的RSS")
+            for (let i = 0; i <= raw.length - 1; i++) {
+              display.push({
+                id: i,
+                title: raw[i].title,
+                link: raw[i].link,
+                description: raw[i].description.replace(/\s{2,}|\n/g, " ").slice(0, 36), // 仅截取部分文章用于展示
+                pubDate: convertGMTToBeijingTime(raw[i].pubDate)
+              })
+            }
+            // 向用户显示
+            console.log("处理完成，向首页展示内容")
+            this.content = display
+            this.stopLoading("首页列表处理完成", true)
+            global.runGC()
+          },
+          fail: (data, code) => {
+            try {
+              file.delete({uri: fileUri})
+            } catch (error) {}
+            prompt.showToast({message: `文件读取失败(${code})`, duration: 3000})
+            this.stopLoading(`文件读取失败(${code}):${data}`, false)
+          },
+          complete: () => {
+            this.stopLoading("读取本地文件", true)
+          }
+        })
+      },
+      fail: (data, code) => {
+        this.stopLoading(`下载失败(onDownloadComplete)(${code}): ${data}`, false)
+        prompt.showToast({
+          message: `下载失败(${code}),请检查网络连接`,
+          duration: 3000
+        })
+      }
+    })
+  },
+  stopLoading(position, isSucceed) {
+    // 加载结束
+    this.show_loading = false
+    this.load_status = ""
+    this.$element("loading").stop()
+    if (isSucceed === false) {
+      this.show_fail = true
+    }
+    console.log("加载动画停止,原因:", position)
+  },
+  itemClick(id) {
+    console.log("列表项点击", id, raw[id])
+    router.push({
+      uri: "pages/detail",
+      params: {
+        clock: this.clock,
+        rssItem: JSON.stringify(raw[id])
+      }
+    })
+  },
+  onInit() {
+    // 时钟
+    const now = new Date()
+    this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+    setInterval(() => {
+      const now = new Date()
+      this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`
+    }, 1000)
+  },
+  onDestroy() {
+    file.delete({uri: fileUri}) // 删除下载的RSS文件，节省资源
+  },
+  onShow() {
+    if (this.$app.$def.data.refresh) {
+      this.show_fail = false
+      this.content = []
+      this.$app.$def.data.refresh = false
+      global.runGC() // 运行垃圾回收
+      this.processRSS()
+    }
+  },
+  toSettings() {
+    if (this.show_loading == true) {
+      prompt.showToast({message: "请等待加载完毕后再操作!"})
+      return
+    }
+    router.push({
+      uri: "pages/settings",
+      params: {
+        clock: this.clock
+      }
+    })
+  },
+  exit() {
+    this.$app.exit()
+  }
+}
+</script>
+
+<style lang="less">
+@import "../../common/css/standard.less";
+</style>
+<style>
+.item {
+  width: 324px;
+  height: 157px;
+  flex-direction: column;
+  padding: 14px;
+  border-radius: 36px;
+  background-color: rgb(38, 38, 38);
+}
+
+.loading {
+  position: absolute;
+  left: 143px;
+  top: 215px;
+  width: 50px;
+  height: 50px;
+}
+</style>

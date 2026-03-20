@@ -1,0 +1,116 @@
+<template>
+  <div class="page">
+    <image
+      src="../../common/back.png"
+      style="position: absolute; left: 6px; top: 6px; width: 72px; height: 72px"
+      @click="goBack()"
+    ></image>
+    <text class="clock">{{ clock }}</text>
+    <text class="title">设置</text>
+    <div class="main">
+      <!--列表-->
+      <list id="list" style="height: 100%; width: 100%" bounces="true">
+        <list-item
+          for="{{ menu }}"
+          type="item"
+          style="height: 112px; margin-bottom: 6px"
+          @click="itemClick($item.id)"
+        >
+          <!--列表项-->
+          <div class="item">
+            <text style="font-size: 32px; line-height: 44.8px; lines: 1; text-overflow: ellipsis">
+              {{ $item.title }}
+            </text>
+            <text style="color: rgba(255, 255, 255, 0.6); font-size: 28px; line-height: 39.2px">
+              {{ $item.desc }}
+            </text>
+          </div>
+        </list-item>
+      </list>
+    </div>
+  </div>
+</template>
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+
+export default {
+  public: {
+    clock: "09:28"
+  },
+  private: {
+    menu: [
+      {id: 0, title: "刷新", desc: "立即刷新列表"},
+      {id: 1, title: "修改RSS", desc: "修改RSS地址"},
+      {id: 2, title: "RSS列表", desc: "曾保存过RSS地址"},
+      {id: 3, title: "文章收藏夹", desc: "已收藏的文章"},
+      {id: 4, title: "文字样式", desc: "修改字号等样式"},
+      {id: 5, title: "关于", desc: "关于本程序"},
+      {id: 6, title: "捐助", desc: "使本程序更易用"}
+    ]
+  },
+  onInit() {
+    // 顶栏时钟更新
+    const now = new Date()
+    this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+    setInterval(() => {
+      const now = new Date()
+      this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`
+    }, 1000)
+  },
+  itemClick(id) {
+    global.runGC() // 运行垃圾回收
+    // 根据点击的菜单项ID进行不同的操作
+    switch (id) {
+      case 0:
+        this.$app.$def.data.refresh = true
+        prompt.showToast({message: "返回首页后将立即刷新"})
+        break
+      case 1:
+        router.push({uri: "pages/set_rss", params: {clock: this.clock}})
+        break
+      case 2:
+        router.push({uri: "pages/viewRssList", params: {clock: this.clock}})
+        break
+      case 3:
+        router.push({uri: "pages/viewFavorites", params: {clock: this.clock}})
+        break
+      case 4:
+        router.push({uri: "pages/set_textStyle", params: {clock: this.clock}})
+        break
+      case 5:
+        router.push({uri: "pages/about", params: {clock: this.clock}})
+        break
+      case 6:
+        router.push({uri: "pages/donate", params: {clock: this.clock}})
+        break
+      default:
+        prompt.showToast({message: `页面ID无效(${id})`})
+        break
+    }
+  },
+  goBack() {
+    router.back()
+  }
+}
+</script>
+<style lang="less">
+@import "../../common/css/standard.less";
+</style>
+<style>
+.item {
+  width: 324px;
+  height: 112px;
+  flex-direction: column;
+  padding-left: 16px;
+  padding-top: 14px;
+  border-radius: 36px;
+  background-color: rgb(38, 38, 38);
+}
+</style>

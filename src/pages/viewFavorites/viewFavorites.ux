@@ -1,0 +1,192 @@
+<template>
+  <div class="page">
+    <image
+      src="../../common/back.png"
+      style="position: absolute; left: 6px; top: 6px; width: 72px; height: 72px"
+      @click="goBack()"
+    ></image>
+    <image
+      src="../../common/delete.png"
+      style="position: absolute; left: 258px; top: 6px; width: 72px; height: 72px"
+      @click="del()"
+    ></image>
+    <text class="clock">{{ clock }}</text>
+    <text class="title">收藏夹</text>
+    <text
+      show="{{ showTip }}"
+      style="
+        position: absolute;
+        left: 71px;
+        top: 298px;
+        width: 194px;
+        height: 45px;
+        text-align: center;
+        font-size: 36px;
+      "
+    >
+      没有内容
+    </text>
+    <image
+      src="../../common/empty.png"
+      style="position: absolute; left: 104px; top: 146px; width: 128px; height: 128px"
+      show="{{ showTip }}"
+    ></image>
+    <div class="main">
+      <list id="list" style="height: 100%; width: 100%" bounces="true">
+        <list-item
+          for="{{ content }}"
+          type="item"
+          style="height: 157px; margin-bottom: 6px"
+          @click="itemClick($item.id)"
+        >
+          <!--列表项-->
+          <div class="item">
+            <text
+              style="
+                font-size: 32px;
+                line-height: 44.8px;
+                lines: 1;
+                text-overflow: ellipsis;
+                margin-bottom: 2px;
+              "
+            >
+              {{ $item.title }}
+            </text>
+            <text
+              style="
+                color: #a8a8a8;
+                font-size: 28px;
+                line-height: 39.2px; 
+                lines: 1;
+                text-overflow: ellipsis;
+                margin-bottom: 2px;
+              "
+            >
+              {{ $item.description.slice(0, 36) }}
+            </text>
+            <text style="color: #a8a8a8; font-size: 27px; line-height: 39.2px; lines: 1">
+              {{ $item.pubDate }}
+            </text>
+          </div>
+        </list-item>
+      </list>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import file from "@system.file"
+import prompt from "@system.prompt"
+
+export default {
+  public: {
+    clock: "09:28"
+  },
+  private: {
+    content: [],
+    showTip: false,
+    deleteBtnClick: 0 // 点击两次才能删除，防止误点
+  },
+  onInit() {
+    // 时钟
+    const now = new Date()
+    this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+    setInterval(() => {
+      const now = new Date()
+      this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`
+    }, 1000)
+  },
+  getArticle() {
+    let stars = []
+    const localFile = "internal://files/rss/star.json"
+    let that = this
+    file.access({
+      // 检测本地文件是否存在
+      uri: localFile,
+      success: (data) => {
+        console.log("读取收藏夹内容")
+        // 文件存在，首先读取文件
+        file.readText({
+          uri: localFile,
+          success: (data) => {
+            stars = JSON.parse(data.text)
+            for (let i in stars) {
+              stars[i].id = i
+            }
+            that.content = stars
+            if (stars.length == 0) this.showTip = true
+          },
+          fail: (data, code) => {
+            prompt.showToast({message: "读取本地收藏夹失败, 请重试",duration:3000})
+          }
+        })
+      },
+      fail: (data, code) => {
+        if (code == 301) {
+          this.showTip = true
+        } else {
+          // 其余情况属于读写错误
+          prompt.showToast({message: "读取本地收藏夹失败, 请重试", duration: 3000})
+        }
+      }
+    })
+  },
+  itemClick(id) {
+    console.log("列表项点击", id, this.content[id])
+    router.push({
+      uri: "pages/detail",
+      params: {
+        clock: this.clock,
+        openMethod: 1,
+        rssItem: JSON.stringify(this.content[id])
+      }
+    })
+  },
+  del() {
+    if (this.deleteBtnClick >= 1) {
+      this.deleteBtnClick = 0
+      file.delete({
+        uri: "internal://files/rss/star.json",
+        success: () => {
+          prompt.showToast({message: "已清空收藏夹,退出重进可刷新列表"})
+        },
+        fail: () => {
+          if (this.content.length == 0) {
+            prompt.showToast({message: "列表已经被清空过了"})
+          } else {
+            prompt.showToast({message: "清空失败,请重试"})
+          }
+        }
+      })
+    } else { 
+      this.deleteBtnClick += 1
+      prompt.showToast({message: "再点击一次,清空收藏夹"})
+    }
+  },
+  onShow() {
+    this.getArticle()
+  },
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style lang="less">@import '../../common/css/standard.less';</style>
+<style>
+.item {
+  width: 324px;
+  height: 157px;
+  flex-direction: column;
+  padding: 14px;
+  border-radius: 36px;
+  background-color: rgb(38, 38, 38);
+}
+</style>

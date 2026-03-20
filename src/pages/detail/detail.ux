@@ -1,0 +1,272 @@
+<template>
+  <div class="page">
+    <div class="main_float">
+      <div style="height: 80px">&nbsp;</div>
+      <div class="card" id="title">
+        <text>{{ rssItem.title }}</text>
+      </div>
+      <div class="card" if="{{ !!rssItem.pubDate }}">
+        <text class="card_title">发布时间</text>
+        <text>{{ rssItem.pubDate.replace(" ", "\n") }}</text>
+      </div>
+      <div class="card" if="{{ !!rssItem.author }}">
+        <text class="card_title">发布者</text>
+        <text>{{ rssItem.author }}</text>
+      </div>
+      <div class="card" if="{{ !!rssItem.link }}" @click="showQR(rssItem.link)">
+        <text class="card_title">链接 (点击显示二维码)</text>
+        <text style="lines: 2; text-overflow: ellipsis">{{ rssItem.link }}</text>
+      </div>
+      <div class="card" style="">
+        <text class="card_title">内容</text>
+        <text id="textContainer" style="font-size: {{ fontSize }} px">{{ pageContent }}</text>
+      </div>
+      <div style="width: 324px; text-align: center">
+        <image
+          src="../../common/minus.png"
+          style="width: 72px; height: 72px"
+          @click="pageEdit(-1)"
+        ></image>
+        <text style="width: 180px; text-align: center">第{{ pageNum }}/{{ totalPage }}页</text>
+        <image
+          src="../../common/plus.png"
+          style="width: 72px; height: 72px"
+          @click="pageEdit(1)"
+        ></image>
+      </div>
+      <text
+        if="{{ false }}"
+        style="font-size: 14px; width: 324px; text-align: center; color: rgb(154, 154, 154)"
+      >
+        <!--仅在调试时使用-->
+        Hash:{{ rssHash }}
+      </text>
+    </div>
+    <div class="header">
+      <!--页面头部-->
+      <text class="clock">{{ clock }}</text>
+      <text class="title">详情</text>
+      <image
+        src="../../common/back.png"
+        style="position: absolute; left: 6px; top: 6px; width: 72px; height: 72px"
+        @click="goBack()"
+      ></image>
+      <image
+        src="../../common/star.png"
+        style="position: absolute; left: 258px; top: 6px; width: 72px; height: 72px"
+        @click="starArticle()"
+      ></image>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import file from "@system.file"
+import storage from "@system.storage"
+import convertGMTToBeijingTime from "../../common/js/timeConvert"
+
+function hash_djb2(str) {
+  let hash = 5381 // 初始哈希种子（质数）
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    // 核心计算：hash * 33 + char （使用位操作提升效率）
+    hash = (hash << 5) - hash + char
+    hash |= 0 // 强制转换为32位整数
+  }
+  return hash >>> 0 // 确保返回无符号整数（0~4294967295）
+}
+
+let charsPerPage = 140 // 每页字数
+export default {
+  private: {
+    slice_begin: 0, // 从全文中截取出要显示的文本，这是开头字符的位置
+    slice_end: charsPerPage, // 见上一行注释。默认显示第一页。
+    pageContent: "",
+    pageNum: 1, // 页码（从1开始）
+    totalPage: 0, // 总页数
+    rssHash: "", // rss的description的DJB2哈希值，仅在调试时使用
+    fontSize: 22
+  },
+  public: {
+    clock: "09:28",
+    rssItem: {},
+    openMethod: 0 // 0为首页打开，1为收藏夹打开
+  },
+  pageEdit(num) {
+    this.totalPage = Math.ceil(this.rssItem.description.length / charsPerPage) // 计算总页数
+    // 处理到达首尾页时的情况
+    if (this.pageNum + num > this.totalPage) {
+      prompt.showToast({message: "已到最后一页"})
+      return
+    } else if (this.pageNum + num < 1) {
+      prompt.showToast({message: "已到第一页"})
+      return
+    }
+    this.pageNum += num // 修改页码
+    console.log("翻页: 页码=", this.pageNum, ", 每页字数=", charsPerPage)
+    this.slice_begin = (this.pageNum - 1) * charsPerPage // 第n页的开头字符位置
+    this.slice_end = this.pageNum * charsPerPage // 第n页的结尾字符位置
+    global.runGC() // 运行垃圾回收
+    this.pageContent = this.rssItem.description.slice(this.slice_begin, this.slice_end) // 切割文本并显示
+  },
+  starArticle() {
+    let stars = []
+    const hash = String(hash_djb2(this.rssItem.description)) // 计算文章内容的DJB2哈希值
+    let newStar = JSON.parse(JSON.stringify(this.rssItem)) // Deep Copy (深拷贝)
+    newStar.hash = hash // 保存哈希值以便下次查重
+    const localFile = "internal://files/rss/star.json"
+    file.access({
+      // 检测本地文件是否存在
+      uri: localFile,
+      success: (data) => {
+        // 文件存在，首先读取文件
+        file.readText({
+          uri: localFile,
+          success: (data) => {
+            stars = JSON.parse(data.text)
+            let itemExist = !!stars.find(function (item) {
+              // 判断收藏项是否已存在
+              return item.hash == hash
+            })
+            if (itemExist) {
+              stars = stars.filter((item) => item.hash != hash) // 收藏项已存在，取消收藏
+            } else {
+              stars.push(newStar) // 将当前文章追加到原有收藏文章列表中
+            }
+            file.writeText({
+              // 写入到本地
+              uri: localFile,
+              text: JSON.stringify(stars),
+              success: () => {
+                // 收藏项已存在，则取消收藏
+                if (itemExist) prompt.showToast({message: "已取消收藏"})
+                else prompt.showToast({message: "收藏成功"})
+              },
+              fail: (data, code) => {
+                prompt.showToast({message: `收藏失败(${code}), 请重试`})
+              }
+            })
+          },
+          fail: (data, code) => {
+            prompt.showToast({message: "读取本地收藏夹失败, 请重试", duration: 3000})
+          }
+        })
+      },
+      fail: (data, code) => {
+        if (code == 301) {
+          // 若文件不存在，直接写入到本地，系统会自动创建文件
+          stars = [newStar] // 注意要以数组形式写入，不然无法push追加元素
+          file.writeText({
+            uri: localFile,
+            text: JSON.stringify(stars),
+            success: () => {
+              prompt.showToast({message: "收藏成功!"})
+            },
+            fail: (data, code) => {
+              prompt.showToast({message: `收藏失败(${code}), 请重试`, duration: 3000})
+            }
+          })
+        } else {
+          // 其余情况属于读写错误
+          prompt.showToast({message: "读取本地收藏夹失败, 请重试", duration: 3000})
+        }
+      }
+    })
+  },
+  onShow() {
+    // 从其他页面 router.back 回来后，系统会重新传参数（未经处理的）给当前页面，但是页面显示的内容不更新
+    // 因此需要重新处理以便读取数据
+    this.rssItem = JSON.parse(this.rssItem)
+    if (this.openMethod != 1) this.rssItem.pubDate = convertGMTToBeijingTime(this.rssItem.pubDate)
+  },
+  onInit() {
+    this.rssItem = JSON.parse(this.rssItem)
+    // 打开方式为1是指，从收藏夹中打开文章，此时pubData已经被格式化，无需再次操作
+    if (this.openMethod != 1) this.rssItem.pubDate = convertGMTToBeijingTime(this.rssItem.pubDate)
+
+    // 时钟
+    const now = new Date()
+    this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+    setInterval(() => {
+      const now = new Date()
+      this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`
+    }, 1000)
+
+    // 获取字号和每页字符数
+    storage.get({
+      key: "font.size",
+      default: "22",
+      success: (data) => {
+        this.fontSize = parseInt(data)
+      },
+      fail: (data, code) => {
+        prompt.showToast({message: `获取字号失败,已采用默认字号`})
+      }
+    })
+    storage.get({
+      key: "font.charsPerPage",
+      default: "140",
+      success: (data) => {
+        charsPerPage = parseInt(data)
+      },
+      fail: (data, code) => {
+        prompt.showToast({message: `获取每页字符数失败,已采用默认值`})
+      }
+    })
+
+    // 显示文章内容
+    this.pageEdit(0) // 默认显示第一页，也就是不翻页
+
+    // 文章内容(description)的DJB2哈希值
+    const hash = String(hash_djb2(this.rssItem.description))
+    this.rssHash = hash
+  },
+  showQR(url) {
+    // 点击文章链接，显示二维码
+    router.push({
+      uri: "pages/qrcode",
+      params: {
+        clock: this.clock,
+        url: url
+      }
+    })
+  },
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style lang="less">@import '../../common/css/standard.less';</style>
+<style>
+.header {
+  height: 80px;
+  background-image: url("../../common/shade.png");
+}
+
+.card {
+  flex-direction: column;
+  width: 324px;
+  padding: 14px;
+  /* padding-bottom: 14px;
+  padding-left: 19px;
+  padding-right: 19px; */
+  margin-bottom: 8px;
+  border-radius: 24px;
+  background-color: rgb(38, 38, 38);
+}
+
+.card_title {
+  color: rgb(168, 168, 168);
+  font-size: 24px;
+  line-height: 39.2px;
+}
+</style>

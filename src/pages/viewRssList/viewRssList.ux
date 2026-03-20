@@ -1,0 +1,246 @@
+<template>
+  <div class="page">
+    <!--顶栏-->
+    <text class="clock">{{ clock }}</text>
+    <text class="title">RSS列表</text>
+    <image
+      @click="quit"
+      src="../../common/back.png"
+      style="position: absolute; left: 6px; top: 6px"
+    ></image>
+    <image
+      src="../../common/delete.png"
+      style="position: absolute; left: 258px; top: 6px; width: 72px; height: 72px"
+      @click="del()"
+    ></image>
+    <!--“没有内容”提示-->
+    <text
+      show="{{ showTip }}"
+      style="
+        position: absolute;
+        left: 71px;
+        top: 298px;
+        width: 194px;
+        height: 45px;
+        text-align: center;
+        font-size: 36px;
+      "
+    >
+      没有内容
+    </text>
+    <image
+      src="../../common/empty.png"
+      style="position: absolute; left: 104px; top: 146px; width: 128px; height: 128px"
+      show="{{ showTip }}"
+    ></image>
+    <div class="main">
+      <!--页面内容-->
+      <list class="box" bounces="true" id="list">
+        <!--列表-->
+        <list-item for="{{ rssList }}" type="item" style="height: 112px; margin-bottom: 8px">
+          <!--列表项-->
+          <div
+            class="option {{ $item.id == selectedId?'selected':'not_selected' }}"
+            @click="select($item.id)"
+            @swipe="onSwipe($item.id)"
+          >
+            <text style="font-size: 32px; line-height: 44.8px; lines: 1">{{ $item.desc }}</text>
+            <marquee
+              scrollamount="22"
+              style="width: 245px; font-size: 28px; line-height: 39.2px; lines: 1"
+            >
+              {{ $item.url }}
+            </marquee>
+            <image
+              src="../../common/check.png"
+              show="{{ $item.id == selectedId?true:false }}"
+              style="position: absolute; left: 270px; top: 40px"
+            ></image>
+          </div>
+        </list-item>
+      </list>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import storage from "@system.storage"
+import file from "@system.file"
+
+export default {
+  public: {
+    clock: "09:28"
+  },
+  private: {
+    rssList: [],
+    showTip: false, // 显示“没有内容”
+    selectedId: -1,
+    deleteBtnClick: 0, // 删除按钮点击次数，点2次才能删除
+    itemDelActionNum: 0 // 列表项删除动作(左滑)次数，左滑2次才能删除列表项
+  },
+  select(id) {
+    if (this.selectedId != id) this.itemDelActionNum = 0
+    this.selectedId = id
+    this.$app.$def.data.refresh = true // 更换后立即刷新
+
+    storage.set({
+      key: "rssUrl",
+      value: this.rssList[id].url,
+      success: () => {
+        console.log("RSS URL保存成功:", this.rssList[id].url)
+      },
+      fail: (error) => {
+        console.error("保存RSS URL失败:", error)
+        prompt.showToast({message: "RSS链接保存失败,请重试", duration: 3000})
+      }
+    })
+  },
+  onInit() {
+    const now = new Date()
+    this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+    setInterval(() => {
+      const now = new Date()
+      this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`
+    }, 1000)
+
+    // 从本地读取rss列表
+    const localFile = "internal://files/rss/list.json"
+    let that = this
+    file.access({
+      uri: localFile,
+      success: (data) => {
+        file.readText({
+          uri: localFile,
+          success: (data) => {
+            let list = JSON.parse(data.text)
+            if (list.length == 0) {
+              this.showTip = true
+              return
+            }
+            // 为每一项赋上id，便于点击某项时，通过id进行高亮
+            for (let i = 0; i <= list.length - 1; i++) {
+              list[i].id = i
+            }
+            that.rssList = list
+
+            // 获取正在使用的RSS地址，在列表中高亮
+            storage.get({
+              key: "rssUrl",
+              default: "0",
+              success: (data) => {
+                that.selectedId = that.rssList.find(function (item) {
+                  return item.url == data
+                }).id
+              },
+              fail: (error) => {
+                prompt.showToast({message: "读取RSS链接失败,请重试", duration: 3000})
+              }
+            })
+          },
+          fail: (data, code) => {
+            prompt.showToast({message: "读取本地收藏夹失败, 请重试", duration: 3000})
+          }
+        })
+      },
+      fail: (data, code) => {
+        if (code == 301) {
+          this.showTip = true
+        } else {
+          // 其余情况属于读写错误
+          prompt.showToast({message: "读取本地收藏夹失败, 请重试", duration: 3000})
+        }
+      }
+    })
+  },
+  del() {
+    // 点击两次清空按钮才能清空，防止误操作
+    if (this.deleteBtnClick >= 1) {
+      this.deleteBtnClick = 0
+      file.delete({
+        uri: "internal://files/rss/list.json",
+        success: () => {
+          this.showTip = true
+          prompt.showToast({message: "已清空RSS列表,退出重进可刷新列表"})
+        },
+        fail: () => {
+          if (this.rssList.length == 0) {
+            prompt.showToast({message: "列表已经被清空过了"})
+          } else {
+            prompt.showToast({message: "清空失败,请重试", duration: 3000})
+          }
+        }
+      })
+      this.rssList = []
+    } else {
+      this.deleteBtnClick += 1
+      prompt.showToast({message: "再点击一次,清空RSS列表"})
+    }
+  },
+  onSwipe(id, $evt) {
+    if ($evt.direction == "left") {
+      if (this.itemDelActionNum >= 1) {
+        this.itemDelActionNum = 0
+        this.rssList.splice(id, 1)
+        file.writeText({
+          // 写入到本地
+          uri: "internal://files/rss/list.json",
+          text: JSON.stringify(this.rssList),
+          success: () => {
+            console.log("列表项删除成功")
+            if (this.rssList.length == 0) {
+              this.showTip = true
+            }
+          },
+          fail: (data, code) => {
+            prompt.showToast({message: `列表写入失败(${code}), 请重试`, duration: 3000})
+          }
+        })
+      } else {
+        this.itemDelActionNum += 1
+        prompt.showToast({message: "再次滑动,即可删除该项"})
+      }
+    }
+  },
+  onReady() {
+    this.$element("list").scrollTo({index: this.selectedId, behavior: "smooth"})
+  },
+  quit() {
+    router.back()
+  }
+}
+</script>
+
+<style lang="less">
+@import "../../common/css/standard.less";
+</style>
+<style>
+.option {
+  width: 324px;
+  height: 112px;
+  flex-direction: column;
+  padding-left: 19px;
+  padding-top: 16px;
+  border-radius: 36px;
+}
+
+.box {
+  height: 100%;
+  width: 100%;
+}
+
+.not_selected {
+  color: white;
+  background-color: rgb(38, 38, 38);
+}
+.selected {
+  background-color: rgb(13, 110, 255);
+}
+</style>

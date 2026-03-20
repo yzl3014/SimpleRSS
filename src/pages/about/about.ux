@@ -1,0 +1,113 @@
+<template>
+  <div class="page">
+    <div class="main_float">
+      <div style="height: 80px">&nbsp;</div>
+      <div class="versionInfo">
+        <text style="font-size: 36px; line-height: 50.4px; font-weight: 500">SimpleRSS</text>
+        <text style="color: #a6a6a6; font-size: 36px; line-height: 50.4px">1.0.3</text>
+        <image
+          src="../../common/logo.png"
+          style="position: absolute; left: 240px; top: 100px; width: 64px; height: 64px"
+        ></image>
+      </div>
+
+      <text class="cTitle">参与开发的人员</text>
+      <text class="authers">@yzl3014</text>
+      <text class="authers">@无源流沙</text>
+
+      <text class="cTitle">联系方式</text>
+      <text class="contact">QQ交流群: 813266746</text>
+      <text class="contact">QQ号: 2145532705</text>
+      <text class="contact">邮箱: yzl3014@outlook.com</text>
+
+      <text class="cTitle">免责声明</text>
+      <text class="disclaimer">
+        ​本应用仅​​抓取与解析​​第三方公开RSS源，不对内容合法性负责。
+        所有资讯立场均属源站点，与本应用及开发者​​无任何关联​​。
+        因设备限制，内容经​​简化处理​​，完整信息请到原链接查看。
+        请遵守所在地法律，​​禁止​​将本工具用于违法场景。
+      </text>
+      <text>&nbsp;</text>
+    </div>
+    <!--顶栏-->
+    <div class="header">
+      <text class="clock">{{ clock }}</text>
+      <text class="title">关于</text>
+      <image
+        src="../../common/back.png"
+        style="position: absolute; left: 6px; top: 6px; width: 72px; height: 72px"
+        @click="goBack()"
+      ></image>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+export default {
+  public: {
+    clock: "09:28"
+  },
+  onInit() {
+    // 时钟
+    const now = new Date()
+    this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+    setInterval(() => {
+      const now = new Date()
+      this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`
+    }, 1000)
+  },
+  goBack() {
+    router.back()
+  }
+  // https://rsshub.app/v2ex/topics/latest?limit=5
+}
+</script>
+
+<style lang="less">@import '../../common/css/standard.less';</style>
+<style>
+.header {
+  height: 80px;
+  background-image: url("../../common/shade.png");
+}
+
+
+.versionInfo {
+  width: 324px;
+  height: 194px;
+  padding-left: 19px;
+  padding-top: 16px;
+  margin-bottom: 12px;
+  border-radius: 36px;
+  background-color: rgb(38, 38, 38);
+  border-width: 3px;
+  border-color: rgb(51, 51, 51);
+  flex-direction: column;
+}
+
+.authers {
+  font-size: 22px;
+}
+
+.contact {
+  font-size: 22px;
+}
+
+.disclaimer {
+  font-size: 18px;
+}
+
+.cTitle {
+  /* content title */
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 44.8px;
+  color: #4ba7a8;
+}
+</style>

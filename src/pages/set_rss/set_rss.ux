@@ -1,0 +1,236 @@
+<import name="input-method" src="../../components/InputMethod/InputMethod.ux"></import>
+<template>
+  <div class="page">
+    <image
+      src="../../common/back.png"
+      style="position: absolute; left: 6px; top: 6px; width: 72px; height: 72px"
+      @click="goBack()"
+    ></image>
+    <image
+      src="../../common/save.png"
+      style="position: absolute; left: 258px; top: 6px; width: 72px; height: 72px"
+      @click="save()"
+    ></image>
+
+    <text class="clock">{{ clock }}</text>
+    <text class="title">修改RSS</text>
+    <div class="main">
+      <!-- 输入框 -->
+      <div class="input">
+        <text style="font-size: 24px; color: #fff">{{ rssUrl }}</text>
+      </div>
+      <text style="font-size: 17px">注意: RSS条目过多可能导致应用崩溃!</text>
+      <text style="font-size: 17px">使用AstroBox插件可在手机端快速填写。</text>
+      <!-- 快速输入 -->
+      <div class="contain">
+        <div class="shortcut" for="{{ shortcuts }}" @click="shortcutClick($item)">
+          <text style="text-align: center">{{ $item }}</text>
+        </div>
+      </div>
+      <input-method
+        hide="{{ kbd_hide }}"
+        keyboardtype="QWERTY"
+        maxlength="5"
+        vibratemode="short"
+        screentype="rect"
+        @delete="onDelete"
+        @complete="onComplete"
+      ></input-method>
+    </div>
+    <image
+      src="{{ kbd_hide?'/common/keyBoard_up.png':'/common/keyBoard_down.png' }}"
+      class="{{ kbd_hide?'kbd_up':'kbd_down' }}"
+      @click="switchKbdStatus()"
+    ></image>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import storage from "@system.storage"
+import file from "@system.file"
+import prompt from "@system.prompt"
+import extractPrimaryDomain from "./domain"
+import interconnect from "@system.interconnect"
+
+export default {
+  private: {
+    kbd_hide: false,
+    shortcuts: ["https", "://", "www.", "rss", "feed", ".xml", "="]
+  },
+  public: {
+    clock: "09:28",
+    rssUrl: ""
+  },
+  shortcutClick(str) {
+    this.rssUrl += String(str)
+  },
+  switchKbdStatus() {
+    this.kbd_hide = !this.kbd_hide
+  },
+  onInit() {
+    // 时钟
+    const now = new Date()
+    this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+    setInterval(() => {
+      const now = new Date()
+      this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`
+    }, 1000)
+
+    // 从本地获取当前RSS地址
+    storage.get({
+      key: "rssUrl",
+      success: (data) => {
+        this.rssUrl = data || ""
+        console.log("获取到的RSS URL:", this.rssUrl)
+      },
+      fail: (error) => {
+        console.error("获取RSS URL失败:", error)
+      }
+    })
+
+    // 配合AstroBox插件端
+    const connect = interconnect.instance()
+    connect.onmessage = (rawData) => {
+      const remote = JSON.parse(rawData.data)
+      this.rssUrl = remote.rssUrl
+      prompt.showToast({message: "已获取远程RSS链接", duration: 3000})
+    }
+  },
+  save() {
+    // 用户设置的RSS地址会立即生效
+    storage.set({
+      key: "rssUrl",
+      value: this.rssUrl,
+      success: () => {
+        console.log("RSS URL保存成功:", this.rssUrl)
+        prompt.showToast({message: "RSS地址已保存"})
+      },
+      fail: (error) => {
+        console.error("保存RSS URL失败:", error)
+      }
+    })
+    this.$app.$def.data.refresh = true // 修改后需要刷新才能看到变化
+
+    // 将RSS地址存入本地列表
+    const localFile = "internal://files/rss/list.json"
+    const rssUrl = this.rssUrl
+    file.access({
+      uri: localFile,
+      success: (data) => {
+        // 先读取本地文件，若有，则追加
+        file.readText({
+          uri: localFile,
+          success: (data) => {
+            let list = JSON.parse(data.text)
+            const itemExist = !!list.find(function (item) {
+              // 判断收藏项是否已存在
+              return item.url == rssUrl
+            })
+            if (itemExist) return // 已存在则不再保存
+            if (!rssUrl.trim()) return // 如果为地址空也不要保存
+            list.push({desc: extractPrimaryDomain(rssUrl), url: rssUrl})
+            file.writeText({
+              // 写入到本地
+              uri: localFile,
+              text: JSON.stringify(list),
+              success: () => {
+                console.log("成功将RSS地址写入列表")
+              },
+              fail: (data, code) => {
+                prompt.showToast({message: `记录写入失败(${code}), 请重试`, duration: 3000})
+              }
+            })
+          },
+          fail: (data, code) => {
+            prompt.showToast({message: "本地读取失败,请重试", duration: 3000})
+          }
+        })
+      },
+      fail: (data, code) => {
+        if (!rssUrl.trim()) return // 如果为地址空则不保存
+        // 本地没有RSS列表，直接写入，系统会自动创建文件
+        file.writeText({
+          // 写入到本地
+          uri: localFile,
+          text: JSON.stringify([{desc: extractPrimaryDomain(rssUrl), url: rssUrl}]),
+          success: () => {
+            console.log("成功将RSS地址写入列表")
+          },
+          fail: (data, code) => {
+            prompt.showToast({message: `记录写入失败(${code}n), 请重试`, duration: 3000})
+          }
+        })
+      }
+    })
+  },
+  onDelete() {
+    this.rssUrl = this.rssUrl.slice(0, -1)
+    console.log("键盘删除字符")
+  },
+  onComplete(event) {
+    this.rssUrl += event.detail.content
+    console.log("输入完成,上屏:", event.detail.content)
+  },
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style lang="less">
+@import "../../common/css/standard.less";
+</style>
+<style>
+.input {
+  width: 324px;
+  min-height: 120px;
+  border-radius: 32px;
+  border-width: 3px;
+  border-color: rgb(38, 38, 38);
+  padding: 14px;
+  margin-bottom: 9px;
+  text-align: center;
+  flex-direction: column;
+}
+
+.kbd_down {
+  position: absolute;
+  left: 263px;
+  bottom: 254px;
+  width: 60px;
+  height: 60px;
+}
+
+.kbd_up {
+  position: absolute;
+  left: 258px;
+  bottom: 4px;
+  width: 72px;
+  height: 72px;
+}
+
+.contain {
+  flex-direction: row;
+  width: 324px;
+  flex-wrap: wrap;
+}
+
+.shortcut {
+  height: 60px;
+  background-color: rgb(38, 38, 38);
+  min-width: 64px;
+  font-size: 24px;
+  padding: 8px;
+  margin: 2px;
+  border-radius: 24px;
+  /* border-width: 3px;
+  border-color: rgb(51, 51, 51); */
+}
+</style>

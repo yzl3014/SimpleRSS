@@ -1,0 +1,95 @@
+.page {
+    width: 336px;
+    height: 480px;
+    color: #fff;
+    background-color: #000;
+    flex-direction: column;
+}
+
+.clock {
+    position: absolute;
+    left: 77px;
+    top: 7px;
+    width: 182px;
+    height: 34px;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 33.6px;
+    color: rgb(154, 154, 154);
+    text-align: center;
+}
+
+.title {
+    position: absolute;
+    left: 77px;
+    top: 35px;
+    width: 182px;
+    height: 45px;
+    font-size: 32px;
+    font-weight: 500;
+    line-height: 44.8px;
+    color: rgb(255, 255, 255);
+    text-align: center;
+}
+
+// .main {
+//     position: absolute;
+//     top: 82px;
+//     left: 6px;
+//     width: 324px;
+//     height: 398px;
+//     flex-direction: column;
+// }
+
+// .main_float {
+//     position: absolute;
+//     top: 0px;
+//     left: 6px;
+//     width: 324px;
+//     height: 480px;
+//     overflow: auto;
+//     flex-direction: column;
+// }
+
+@media (aspect-ratio:336/480) {
+    .main {
+        position: absolute;
+        top: 82px;
+        left: 6px;
+        width: 324px;
+        height: 398px;
+        flex-direction: column;
+    }
+
+    .main_float {
+        position: absolute;
+        top: 0px;
+        left: 6px;
+        width: 324px;
+        height: 480px;
+        overflow: auto;
+        flex-direction: column;
+    }
+
+}
+
+@media (aspect-ratio:432/514) {
+    .main {
+        position: absolute;
+        top: 82px;
+        left: 6px;
+        width: 324px;
+        height: 316px;
+        flex-direction: column;
+    }
+
+    .main_float {
+        position: absolute;
+        top: 0px;
+        left: 6px;
+        width: 324px;
+        height: 398px;
+        overflow: auto;
+        flex-direction: column;
+    }
+}

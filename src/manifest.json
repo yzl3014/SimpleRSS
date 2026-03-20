@@ -1,0 +1,76 @@
+{
+  "package": "com.yzl3014.simplerss",
+  "name": "SimpleRSS",
+  "versionName": "1.0.3",
+  "versionCode": 13,
+  "minPlatformVersion": 1000,
+  "icon": "/common/logo.png",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.storage"
+    },
+    {
+      "name": "system.prompt"
+    },
+    {
+      "name": "system.request"
+    },
+    {
+      "name": "system.file"
+    },
+    {
+      "name": "system.device"
+    },
+    {
+      "name": "system.vibrator"
+    },
+    {
+      "name": "system.interconnect"
+    }
+  ],
+  "config": {
+    "logLevel": "log",
+    "designWidth": 336
+  },
+  "router": {
+    "entry": "pages/index",
+    "pages": {
+      "pages/index": {
+        "component": "index"
+      },
+      "pages/detail": {
+        "component": "detail"
+      },
+      "pages/settings": {
+        "component": "settings"
+      },
+      "pages/about": {
+        "component": "about"
+      },
+      "pages/qrcode": {
+        "component": "qrcode"
+      },
+      "pages/set_textStyle": {
+        "component": "set_textStyle"
+      },
+      "pages/set_rss": {
+        "component": "set_rss"
+      },
+      "pages/viewFavorites": {
+        "component": "viewFavorites"
+      },
+      "pages/viewRssList": {
+        "component": "viewRssList"
+      },
+      "pages/donate": {
+        "component": "donate"
+      }
+    }
+  }
+}

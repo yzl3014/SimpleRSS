@@ -1,0 +1,74 @@
+<template>
+  <div class="page">
+    <div class="main_float">
+      <div style="height: 80px">&nbsp;</div>
+      <div style="flex-direction: column">
+        <text class="content">
+          每个手环应用的背后都是数小时的开发和近百次的调试，当开发者将自己精心开发的程序免费发布到社区时，我们不妨也向开发者提供一些鼓励和支持。
+        </text>
+        <text class="content">
+          如果您在使用期间遇到了故障或者需要退款，请到“关于”页面查看联系方式。
+        </text>
+        <text class="content">请使用指定的手机应用，扫描下方的二维码：</text>
+      </div>
+      <image
+        src="../../common/wechat.png"
+        style="width: 240px; height: 240px; margin-left: 48px"
+      ></image>
+      <text style="width: 100%; text-align: center">▲ 微信</text>
+      <image
+        src="../../common/alipay.png"
+        style="width: 240px; height: 240px; margin-left: 48px"
+      ></image>
+      <text style="width: 100%; text-align: center">▲ 支付宝</text>
+    </div>
+    <div class="header">
+      <image
+        src="../../common/back.png"
+        style="position: absolute; left: 6px; top: 6px; width: 72px; height: 72px"
+        @click="goBack()"
+      ></image>
+      <text class="clock">{{ clock }}</text>
+      <text class="title">捐助</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+export default {
+  public: {
+    clock: "09:28"
+  },
+  onInit() {
+    // 时钟
+    const now = new Date()
+    this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+    setInterval(() => {
+      const now = new Date()
+      this.clock = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`
+    }, 1000)
+  },
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style lang="less">@import '../../common/css/standard.less';</style>
+<style>
+.header {
+  height: 80px;
+  background-image: url("../../common/shade.png");
+}
+
+.content {
+  font-size: 22px;
+}
+</style>
