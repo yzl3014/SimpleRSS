@@ -3,6 +3,7 @@
   "name": "SimpleRSS",
   "versionName": "1.0.3",
   "versionCode": 13,
+  "minAPILevel": 2,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "deviceTypeList": [
